@@ -1,8 +1,8 @@
 import express from 'express'
-import Matrix from '../controllers/matrixController'
+import { GetMatrixs } from "../controllers/matrixController.js"
 
 const router = express.Router()
 
-router.post('/', Matrix.GetMatrixs)
+router.post("/", GetMatrixs)
 
-module.exports = router
+export default router

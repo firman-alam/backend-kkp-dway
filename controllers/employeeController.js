@@ -4,7 +4,7 @@ const addEmployee = async (req, res) => {}
 const updateEmployee = async (req, res) => {}
 const deleteEmployee = async (req, res) => {}
 
-module.exports = {
+export {
   getAllEmployees,
   getEmployee,
   addEmployee,

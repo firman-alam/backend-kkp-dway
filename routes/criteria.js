@@ -1,15 +1,21 @@
 import express from 'express'
-import Criteria from '../controllers/criteriaController'
+import {
+  addCriteria,
+  deleteCriteria,
+  getAllCriterias,
+  getCriteria,
+  updateCriteria,
+} from "../controllers/criteriaController.js"
 
 const router = express.Router()
 
 router
-  .route('/')
-  .get(Criteria.getAllCriterias)
-  .post(Criteria.addCriteria)
-  .put(Criteria.updateCriteria)
-  .delete(Criteria.deleteCriteria)
+  .route("/")
+  .get(getAllCriterias)
+  .post(addCriteria)
+  .put(updateCriteria)
+  .delete(deleteCriteria)
 
-router.route('/:id').get(Criteria.getCriteria)
+router.route("/:id").get(getCriteria)
 
-module.exports = router
+export default router

@@ -1,8 +1,8 @@
 import express from 'express'
-import Data from '../controllers/dataController'
+import { GetData } from "../controllers/dataController.js"
 
 const router = express.Router()
 
-router.post('/', Data.GetData)
+router.post("/", GetData)
 
-module.exports = router
+export default router

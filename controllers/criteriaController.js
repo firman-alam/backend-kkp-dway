@@ -4,7 +4,7 @@ const addCriteria = async (req, res) => {}
 const updateCriteria = async (req, res) => {}
 const deleteCriteria = async (req, res) => {}
 
-module.exports = {
+export {
   getAllCriterias,
   getCriteria,
   addCriteria,
