@@ -1,5 +1,5 @@
-import express from 'express'
-import { GetMatrixs } from "../controllers/matrixController.js"
+const express = require('express')
+const Matrix = require('../controllers/matrixController')
 
 const router = express.Router()
 

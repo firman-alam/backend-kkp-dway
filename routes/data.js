@@ -1,8 +1,8 @@
-import express from 'express'
-import { GetData } from "../controllers/dataController.js"
+const express = require('express')
+const Data = require('../controllers/dataController')
 
 const router = express.Router()
 
-router.post("/", GetData)
+router.post("/", Data.GetData)
 
 export default router

@@ -1,21 +1,14 @@
-import express from "express"
-import cors from "cors"
-import cookieParser from "cookie-parser"
-
-import corsOptions from "./config/corsOptions.js"
-import { logger } from "./middleware/logEvents.js"
-import errorHandler from "./middleware/errorHandler.js"
-import verifyJWT from "./middleware/verifyJWT.js"
-import credentials from "./middleware/credentials.js"
-
-import userRoute from "./routes/users.js"
-import employeeRoute from "./routes/employee.js"
-import dataRoute from "./routes/data.js"
-import criteriaRoute from "./routes/criteria.js"
-import matrixRoute from "./routes/matrix.js"
-
-const PORT = process.env.PORT || 9000
+const express = require("express")
 const app = express()
+const pool = require("./config/dbConfig")
+const cors = require("cors")
+const corsOptions = require("./config/corsOptions")
+const { logger } = require("./middleware/logEvents")
+const errorHandler = require("./middleware/errorHandler")
+const verifyJWT = require("./middleware/verifyJWT")
+const cookieParser = require("cookie-parser")
+const credentials = require("./middleware/credentials")
+const PORT = process.env.PORT || 9000
 
 // custom middleware logger
 app.use(logger)
@@ -36,15 +29,25 @@ app.use(express.json())
 //middleware for cookies
 app.use(cookieParser())
 
-//serve static files
-app.use("/auth", userRoute)
+// routes
+app.use("/auth", require("./routes/users"))
 
 app.use(verifyJWT)
-app.use("/employees", employeeRoute)
-app.use("/criteria", criteriaRoute)
-app.use("/data", dataRoute)
-app.use("/matrix", matrixRoute)
+app.use("/employee", require("./routes/employee"))
+app.use("/criteria", require("./routes/criteria"))
+app.use("/matrix", require("./routes/matrix"))
+app.use("/data", require("./routes/data"))
 
 app.use(errorHandler)
+
+// Testing the connection
+pool.getConnection((err, connection) => {
+  if (err) {
+    console.error("Error connecting to MySQL:", err)
+  } else {
+    console.log("Connected to MySQL")
+    connection.release()
+  }
+})
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`))

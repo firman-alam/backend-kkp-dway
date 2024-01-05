@@ -1,21 +1,15 @@
-import express from 'express'
-import {
-  addEmployee,
-  deleteEmployee,
-  getAllEmployees,
-  getEmployee,
-  updateEmployee,
-} from "../controllers/employeeController.js"
+const express = require('express')
+const Employee = require('../controllers/employeeController')
 
 const router = express.Router()
 
 router
   .route("/")
-  .get(getAllEmployees)
-  .post(addEmployee)
-  .put(updateEmployee)
-  .delete(deleteEmployee)
+  .get(Employee.getAllEmployees)
+  .post(Employee.addEmployee)
+  .put(Employee.updateEmployee)
+  .delete(Employee.deleteEmployee)
 
-router.route("/:id").get(getEmployee)
+router.route("/:id").get(Employee.getEmployee)
 
 export default router
