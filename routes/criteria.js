@@ -1,5 +1,5 @@
-import express from 'express'
-import Criteria from '../controllers/criteriaController'
+const express = require('express')
+const Criteria = require('../controllers/criteriaController')
 
 const router = express.Router()
 

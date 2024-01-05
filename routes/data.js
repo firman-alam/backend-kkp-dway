@@ -1,5 +1,5 @@
-import express from 'express'
-import Data from '../controllers/dataController'
+const express = require('express')
+const Data = require('../controllers/dataController')
 
 const router = express.Router()
 
