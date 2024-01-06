@@ -1,3 +1,3 @@
 const GetMatrixs = async (req, res) => {}
 
-export { GetMatrixs }
+module.exports = { GetMatrixs }

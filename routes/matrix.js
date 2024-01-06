@@ -3,6 +3,6 @@ const Matrix = require('../controllers/matrixController')
 
 const router = express.Router()
 
-router.post("/", GetMatrixs)
+router.post('/', Matrix.GetMatrixs)
 
-export default router
+module.exports = router

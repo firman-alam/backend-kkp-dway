@@ -4,4 +4,4 @@ const allowedOrigins = [
   'http://localhost:3500',
 ]
 
-export default allowedOrigins
+module.exports = allowedOrigins
