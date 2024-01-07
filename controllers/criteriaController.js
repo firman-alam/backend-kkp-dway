@@ -1,8 +1,9 @@
 const pool = require('../config/dbConfig')
+const { getUserIdFromToken } = require('./userController')
 
-const getAllCriterias = (req, res) => {
+const getAllCriterias = async (req, res) => {
   try {
-    const [rows] = pool.query('SELECT * FROM kriteria')
+    const [rows] = await pool.promise().query('SELECT * FROM kriteria')
     res.json(rows)
   } catch (error) {
     console.error(error)
@@ -10,13 +11,14 @@ const getAllCriterias = (req, res) => {
   }
 }
 
-const getCriteria = (req, res) => {
+const getCriteria = async (req, res) => {
   const criteriaId = req.params.id
 
   try {
-    const [rows] = pool.query('SELECT * FROM kriteria WHERE id_kriteria = ?', [
-      criteriaId,
-    ])
+    const [rows] = await pool
+      .promise()
+      .query('SELECT * FROM kriteria WHERE id_kriteria = ?', [criteriaId])
+
     if (rows.length > 0) {
       res.json(rows[0])
     } else {
@@ -28,15 +30,17 @@ const getCriteria = (req, res) => {
   }
 }
 
-const addCriteria = (req, res) => {
+const addCriteria = async (req, res) => {
   const { nama, bobot, kode, tipe } = req.body
   const userId = getUserIdFromToken(req.headers.authorization)
 
   try {
-    const [result] = pool.query(
-      'INSERT INTO kriteria (nama, bobot, kode, tipe, created_by) VALUES (?, ?, ?, ?, ?)',
-      [nama, bobot, kode, tipe, userId]
-    )
+    const [result] = await pool
+      .promise()
+      .query(
+        'INSERT INTO kriteria (nama, bobot, code, tipe, created_by) VALUES (?, ?, ?, ?, ?)',
+        [nama, bobot, kode, tipe, userId]
+      )
 
     const insertedId = result.insertId
     res.json({
@@ -50,15 +54,16 @@ const addCriteria = (req, res) => {
 }
 
 const updateCriteria = async (req, res) => {
-  const criteriaId = req.params.id
-  const { nama, bobot, kode, tipe } = req.body
+  const { id_kriteria, nama, bobot, kode, tipe } = req.body
   const userId = getUserIdFromToken(req.headers.authorization)
 
   try {
-    const [result] = pool.query(
-      'UPDATE kriteria SET nama = ?, bobot = ?, kode = ?, tipe = ?, last_modified_by = ? WHERE id_kriteria = ?',
-      [nama, bobot, kode, tipe, userId, criteriaId]
-    )
+    const [result] = await pool
+      .promise()
+      .query(
+        'UPDATE kriteria SET nama = ?, bobot = ?, code = ?, tipe = ?, last_modified_by = ? WHERE id_kriteria = ?',
+        [nama, bobot, kode, tipe, userId, id_kriteria]
+      )
 
     if (result.affectedRows > 0) {
       res.send('Criteria updated successfully')
@@ -76,10 +81,9 @@ const deleteCriteria = async (req, res) => {
   const userId = getUserIdFromToken(req.headers.authorization)
 
   try {
-    const [result] = pool.query(
-      'DELETE FROM kriteria WHERE id_kriteria = ? AND last_modified_by = ?',
-      [criteriaId, userId]
-    )
+    const [result] = await pool
+      .promise()
+      .query('DELETE FROM kriteria WHERE id_kriteria = ?', [criteriaId, userId])
 
     if (result.affectedRows > 0) {
       res.send('Criteria deleted successfully')
