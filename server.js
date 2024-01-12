@@ -1,17 +1,16 @@
-const express = require("express")
+const express = require('express')
 const app = express()
-const pool = require("./config/dbConfig")
-const cors = require("cors")
-const corsOptions = require("./config/corsOptions")
-const { logger } = require("./middleware/logEvents")
-const errorHandler = require("./middleware/errorHandler")
-const verifyJWT = require("./middleware/verifyJWT")
-const cookieParser = require("cookie-parser")
-const credentials = require("./middleware/credentials")
+const pool = require('./config/dbConfig')
+const cors = require('cors')
+const corsOptions = require('./config/corsOptions')
+const errorHandler = require('./middleware/errorHandler')
+const verifyJWT = require('./middleware/verifyJWT')
+const cookieParser = require('cookie-parser')
+const credentials = require('./middleware/credentials')
 const PORT = process.env.PORT || 9000
 
 // custom middleware logger
-app.use(logger)
+// app.use(logger)
 
 // Handle options credentials check - before CORS!
 // and fetch cookies credentials requirement
@@ -30,22 +29,22 @@ app.use(express.json())
 app.use(cookieParser())
 
 // routes
-app.use("/auth", require("./routes/users"))
+app.use('/auth', require('./routes/users'))
 
 app.use(verifyJWT)
-app.use("/employee", require("./routes/employee"))
-app.use("/criteria", require("./routes/criteria"))
-app.use("/matrix", require("./routes/matrix"))
-app.use("/data", require("./routes/data"))
+app.use('/employee', require('./routes/employee'))
+app.use('/criteria', require('./routes/criteria'))
+app.use('/matrix', require('./routes/matrix'))
+app.use('/data', require('./routes/data'))
 
 app.use(errorHandler)
 
 // Testing the connection
 pool.getConnection((err, connection) => {
   if (err) {
-    console.error("Error connecting to MySQL:", err)
+    console.error('Error connecting to MySQL:', err)
   } else {
-    console.log("Connected to MySQL")
+    console.log('Connected to MySQL')
     connection.release()
   }
 })

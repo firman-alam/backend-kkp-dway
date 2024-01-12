@@ -3,6 +3,12 @@ const Matrix = require('../controllers/matrixController')
 
 const router = express.Router()
 
-router.post('/', Matrix.GetMatrixs)
+router
+  .route('/nilai')
+  .get(Matrix.GetAllNilai)
+  .post(Matrix.AddNilai)
+  .put(Matrix.EditNilai)
+
+router.route('/nilai/:id').get(Matrix.GetNilai).delete(Matrix.DeleteNilai)
 
 module.exports = router

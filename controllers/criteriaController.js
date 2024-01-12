@@ -38,7 +38,7 @@ const addCriteria = async (req, res) => {
     const [result] = await pool
       .promise()
       .query(
-        'INSERT INTO kriteria (nama, bobot, code, tipe, created_by) VALUES (?, ?, ?, ?, ?)',
+        'INSERT INTO kriteria (nama, bobot, code, tipe, created_by, created_date) VALUES (?, ?, ?, ?, ?, NOW())',
         [nama, bobot, kode, tipe, userId]
       )
 
@@ -61,7 +61,7 @@ const updateCriteria = async (req, res) => {
     const [result] = await pool
       .promise()
       .query(
-        'UPDATE kriteria SET nama = ?, bobot = ?, code = ?, tipe = ?, last_modified_by = ? WHERE id_kriteria = ?',
+        'UPDATE kriteria SET nama = ?, bobot = ?, code = ?, tipe = ?, last_modified_by = ?, last_modified_by = NOW() WHERE id_kriteria = ?',
         [nama, bobot, kode, tipe, userId, id_kriteria]
       )
 
