@@ -7,9 +7,8 @@ router
   .route('/')
   .get(Criteria.getAllCriterias)
   .post(Criteria.addCriteria)
-  .put(Criteria.updateCriteria)
-  .delete(Criteria.deleteCriteria)
+  .patch(Criteria.updateCriteria)
 
-router.route('/:id').get(Criteria.getCriteria)
+router.route('/:id').get(Criteria.getCriteria).delete(Criteria.deleteCriteria)
 
 module.exports = router
