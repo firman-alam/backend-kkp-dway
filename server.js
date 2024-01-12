@@ -36,7 +36,6 @@ app.use(verifyJWT)
 app.use("/employee", require("./routes/employee"))
 app.use("/criteria", require("./routes/criteria"))
 app.use("/matrix", require("./routes/matrix"))
-app.use("/data", require("./routes/data"))
 
 app.use(errorHandler)
 

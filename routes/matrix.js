@@ -5,4 +5,6 @@ const router = express.Router()
 
 router.post('/', Matrix.GetMatrixs)
 
+router.route("/ranks").get(Matrix.GetRanks)
+
 module.exports = router
