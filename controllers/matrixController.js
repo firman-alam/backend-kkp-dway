@@ -160,7 +160,7 @@ const AddNilai = async (req, res) => {
 
     // insert into matriks_penilaian_detail table
     const matriksDetailQuery =
-      'INSERT INTO matriks_penilaian_detail (id_matriks_detail, id_kriteria, nilai, created_by, created_date) VALUES (?, ?, ?, ?, NOW())'
+      'INSERT INTO matriks_penilaian_detail (id_matriks_detail, id_kriteria, nilai, preferensi, created_by, created_date) VALUES (?, ?, ?, ?, NOW())'
 
     for (const detail of details) {
       const matriksDetailValues = [
@@ -191,7 +191,7 @@ const AddNilai = async (req, res) => {
       )
 
       if (matchingCriteria) {
-        if (type === 'benefit') {
+        if (matchingCriteria.type === 'benefit') {
           // If type is benefit, get highest nilai in matriks_penilaian_detail with same id kriteria
           const highestBenefit = Math.max(
             ...matriksDetailRows
@@ -201,6 +201,7 @@ const AddNilai = async (req, res) => {
 
           // Divide detail nilai with highest nilai from matriks_penilaian_detail
           const normalizedValue = detail.nilai / highestBenefit
+          const preferensi = normalizedValue * matchingCriteria.bobot
           // Add data to matriks_penilaian_detail
           await pool
             .promise()
@@ -208,9 +209,10 @@ const AddNilai = async (req, res) => {
               idMatriks,
               id_kriteria,
               normalizedValue,
+              preferensi,
               userId,
             ])
-        } else if (type === 'cost') {
+        } else if (matchingCriteria.type === 'cost') {
           // If type is cost, get lowest nilai in matriks_penilaian_detail with same id kriteria
           const lowestCost = Math.min(
             ...matriksDetailRows
@@ -220,6 +222,7 @@ const AddNilai = async (req, res) => {
 
           // Divide lowest nilai from matriks_penilaian_detail with detail nilai
           const normalizedValue = lowestCost / detail.nilai
+          const preferensi = normalizedValue * matchingCriteria.bobot
           // Add data to matriks_penilaian_detail
           await pool
             .promise()
@@ -227,6 +230,7 @@ const AddNilai = async (req, res) => {
               idMatriks,
               id_kriteria,
               normalizedValue,
+              preferensi,
               userId,
             ])
         }
@@ -529,4 +533,5 @@ module.exports = {
   EditNilai,
   DeleteNilai,
   GetMatrixs,
+  GetRanks,
 }
