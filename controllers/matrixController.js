@@ -50,6 +50,7 @@ const GetAllNilai = async (req, res) => {
         id_pegawai: headerData.id_pegawai,
         nama: headerData.pegawai_nama,
         tahun: headerData.tahun,
+        id_penilaian: headerData.id_penilaian,
         details: detailsResults,
       }
 
@@ -117,6 +118,7 @@ const GetNilai = async (req, res) => {
       id_pegawai: headerData.id_pegawai,
       nama: headerData.pegawai_nama,
       tahun: headerData.tahun,
+      id_penilaian: headerData.id_penilaian,
       details: detailsResults,
     }
 
@@ -126,6 +128,17 @@ const GetNilai = async (req, res) => {
     console.error('Error fetching data:', error)
     res.status(500).send('Internal Server Error')
   }
+}
+
+const checkAlternatifExists = async (alternatif) => {
+  const [result] = await pool
+    .promise()
+    .query(
+      'SELECT COUNT(*) as count FROM matriks_penilaian_header WHERE alternatif = ?',
+      [alternatif]
+    )
+
+  return result[0].count > 0
 }
 
 const AddNilai = async (req, res) => {
@@ -158,23 +171,27 @@ const AddNilai = async (req, res) => {
       await pool.promise().query(detailQuery, detailValues)
     }
 
-    // insert into matriks_penilaian_detail table
-    const matriksDetailQuery =
-      'INSERT INTO matriks_penilaian_detail (id_matriks_detail, id_kriteria, nilai, preferensi, created_by, created_date) VALUES (?, ?, ?, ?, NOW())'
+    let alternatif = 'A1'
+    let counter = 1
 
-    for (const detail of details) {
-      const matriksDetailValues = [
-        idMatriks,
-        detail.id_kriteria,
-        detail.nilai,
-        userId,
-      ]
-
-      await pool.promise().query(matriksDetailQuery, matriksDetailValues)
+    while (await checkAlternatifExists(alternatif)) {
+      counter++
+      alternatif = `A${counter}`
     }
 
+    await pool
+      .promise()
+      .query(
+        'INSERT INTO matriks_penilaian_header (id_pegawai, id_matriks, alternatif, created_by, created_date) VALUES (?, ?, ?, ?, NOW())',
+        [id_pegawai, idPenilaian, alternatif, userId]
+      )
+
+    // insert into matriks_penilaian_detail table
+    const matriksDetailQuery =
+      'INSERT INTO matriks_penilaian_detail (id_matriks_detail, id_kriteria, nilai, preferensi, created_by, created_date) VALUES (?, ?, ?, ?, ?, NOW())'
+
     // Get data from criteria table
-    const [criteriaRows] = await pool.promise().query('SELECT * FROM criteria')
+    const [criteriaRows] = await pool.promise().query('SELECT * FROM kriteria')
 
     // Get data from matriks_penilaian_detail table
     const [matriksDetailRows] = await pool
@@ -183,7 +200,7 @@ const AddNilai = async (req, res) => {
 
     // Loop through details
     for (const detail of details) {
-      const { id_kriteria, type } = detail
+      const { id_kriteria } = detail
 
       // Check for detail id kriteria same as kriteria id kriteria
       const matchingCriteria = criteriaRows.find(
@@ -191,7 +208,7 @@ const AddNilai = async (req, res) => {
       )
 
       if (matchingCriteria) {
-        if (matchingCriteria.type === 'benefit') {
+        if (matchingCriteria.tipe === 'benefit') {
           // If type is benefit, get highest nilai in matriks_penilaian_detail with same id kriteria
           const highestBenefit = Math.max(
             ...matriksDetailRows
@@ -200,8 +217,165 @@ const AddNilai = async (req, res) => {
           )
 
           // Divide detail nilai with highest nilai from matriks_penilaian_detail
-          const normalizedValue = detail.nilai / highestBenefit
+          const normalizedValue =
+            detail.nilai / highestBenefit == 0 ? detail.nilai : highestBenefit
           const preferensi = normalizedValue * matchingCriteria.bobot
+
+          console.log(normalizedValue, preferensi)
+          // Add data to matriks_penilaian_detail
+          await pool
+            .promise()
+            .query(matriksDetailQuery, [
+              idPenilaian,
+              id_kriteria,
+              normalizedValue,
+              preferensi,
+              userId,
+            ])
+        } else if (matchingCriteria.tipe === 'cost') {
+          // If type is cost, get lowest nilai in matriks_penilaian_detail with same id kriteria
+          const lowestCost = Math.min(
+            ...matriksDetailRows
+              .filter((row) => row.id_kriteria === id_kriteria)
+              .map((row) => row.nilai)
+          )
+
+          // Divide lowest nilai from matriks_penilaian_detail with detail nilai
+          const normalizedValue =
+            lowestCost == 0 ? detail.nilai : lowestCost / detail.nilai
+          const preferensi = normalizedValue * matchingCriteria.bobot
+          // Add data to matriks_penilaian_detail
+          await pool
+            .promise()
+            .query(matriksDetailQuery, [
+              idPenilaian,
+              id_kriteria,
+              normalizedValue,
+              preferensi,
+              userId,
+            ])
+        }
+      }
+    }
+
+    const allDetailRows = await pool
+      .promise()
+      .query(
+        'SELECT preferensi FROM matriks_penilaian_detail WHERE id_matriks_detail = ?',
+        [idPenilaian]
+      )
+
+    // Calculate the sum of preferensi values
+    const totalPreferensi = allDetailRows[0].reduce(
+      (sum, row) => sum + row.preferensi,
+      0
+    )
+
+    // Update the total field in matriks_penilaian_header
+    await pool
+      .promise()
+      .query(
+        'UPDATE matriks_penilaian_header SET total = ? WHERE id_matriks = ?',
+        [totalPreferensi, idPenilaian]
+      )
+
+    res.status(200).json({ message: 'Data inserted successfully' })
+  } catch (error) {
+    console.error(error)
+    res.status(500).send('Internal Server Error')
+  }
+}
+
+const EditNilai = async (req, res) => {
+  const { id_penilaian, id_pegawai, tahun, details } = req.body
+  const userId = getUserIdFromToken(req.headers.authorization)
+
+  try {
+    // delete data penilain deails
+    await pool
+      .promise()
+      .query(
+        'DELETE FROM data_penilaian_detail WHERE id_penilaian_detail = ?',
+        [id_penilaian]
+      )
+
+    // update into data_penilaian_header table
+    const [headerResult] = await pool
+      .promise()
+      .query(
+        'Update data_penilaian_header (id_pegawai, tahun, created_by, created_date) VALUES (?, ?, ?, NOW())',
+        [id_pegawai, tahun, userId]
+      )
+
+    const idPenilaian = headerResult.insertId
+
+    // Insert into data_penilaian_detail table
+    const detailQuery =
+      'INSERT INTO data_penilaian_detail (id_penilaian_detail, id_kriteria, nilai, created_by, created_date) VALUES (?, ?, ?, ?, NOW())'
+
+    for (const detail of details) {
+      const detailValues = [
+        idPenilaian,
+        detail.id_kriteria,
+        detail.nilai,
+        userId,
+      ]
+
+      await pool.promise().query(detailQuery, detailValues)
+    }
+
+    // delete data penilain deails
+    await pool
+      .promise()
+      .query(
+        'DELETE FROM matriks_penilaian_detail WHERE id_matriks_detail = ?',
+        [id_penilaian]
+      )
+
+    const [headerMatriks] = await pool
+      .promise()
+      .query(
+        'UPDATE matriks_penilaian_header (id_pegawai, created_by, created_date) VALUES (?, ?, NOW())',
+        [id_pegawai, userId]
+      )
+
+    const idMatriks = headerMatriks.insertId
+
+    // insert into matriks_penilaian_detail table
+    const matriksDetailQuery =
+      'INSERT INTO matriks_penilaian_detail (id_matriks_detail, id_kriteria, nilai, preferensi, created_by, created_date) VALUES (?, ?, ?, ?, ?, NOW())'
+
+    // Get data from criteria table
+    const [criteriaRows] = await pool.promise().query('SELECT * FROM kriteria')
+
+    // Get data from matriks_penilaian_detail table
+    const [matriksDetailRows] = await pool
+      .promise()
+      .query('SELECT * FROM matriks_penilaian_detail')
+
+    // Loop through details
+    for (const detail of details) {
+      const { id_kriteria } = detail
+
+      // Check for detail id kriteria same as kriteria id kriteria
+      const matchingCriteria = criteriaRows.find(
+        (criteria) => criteria.id_kriteria === id_kriteria
+      )
+
+      if (matchingCriteria) {
+        if (matchingCriteria.tipe === 'benefit') {
+          // If type is benefit, get highest nilai in matriks_penilaian_detail with same id kriteria
+          const highestBenefit = Math.max(
+            ...matriksDetailRows
+              .filter((row) => row.id_kriteria === id_kriteria)
+              .map((row) => row.nilai)
+          )
+
+          // Divide detail nilai with highest nilai from matriks_penilaian_detail
+          const normalizedValue =
+            detail.nilai / highestBenefit == 0 ? detail.nilai : highestBenefit
+          const preferensi = normalizedValue * matchingCriteria.bobot
+
           // Add data to matriks_penilaian_detail
           await pool
             .promise()
@@ -212,7 +386,7 @@ const AddNilai = async (req, res) => {
               preferensi,
               userId,
             ])
-        } else if (matchingCriteria.type === 'cost') {
+        } else if (matchingCriteria.tipe === 'cost') {
           // If type is cost, get lowest nilai in matriks_penilaian_detail with same id kriteria
           const lowestCost = Math.min(
             ...matriksDetailRows
@@ -221,7 +395,8 @@ const AddNilai = async (req, res) => {
           )
 
           // Divide lowest nilai from matriks_penilaian_detail with detail nilai
-          const normalizedValue = lowestCost / detail.nilai
+          const normalizedValue =
+            lowestCost == 0 ? detail.nilai : lowestCost / detail.nilai
           const preferensi = normalizedValue * matchingCriteria.bobot
           // Add data to matriks_penilaian_detail
           await pool
@@ -237,6 +412,27 @@ const AddNilai = async (req, res) => {
       }
     }
 
+    const allDetailRows = await pool
+      .promise()
+      .query(
+        'SELECT preferensi FROM matriks_penilaian_detail WHERE id_matriks = ?',
+        [idMatriks]
+      )
+
+    // Calculate the sum of preferensi values
+    const totalPreferensi = allDetailRows[0].reduce(
+      (sum, row) => sum + row.preferensi,
+      0
+    )
+
+    // Update the total field in matriks_penilaian_header
+    await pool
+      .promise()
+      .query(
+        'UPDATE matriks_penilaian_header SET total = ? WHERE id_matriks = ?',
+        [totalPreferensi, idMatriks]
+      )
+
     res.status(200).json({ message: 'Data inserted successfully' })
   } catch (error) {
     console.error(error)
@@ -244,51 +440,8 @@ const AddNilai = async (req, res) => {
   }
 }
 
-const EditNilai = async (req, res) => {
-  const { id_penilaian, id_pegawai, tahun, details } = req.body
-  const userId = getUserIdFromToken(req.headers.authorization)
-
-  try {
-    // Update data_penilaian_header table
-    await pool
-      .promise()
-      .query(
-        'UPDATE data_penilaian_header SET id_pegawai = ?, tahun = ?, last_modified_by = ?, last_modified_date = NOW() WHERE id_penilaian = ?',
-        [id_pegawai, tahun, userId, id_penilaian]
-      )
-
-    // Delete existing details for the given id_penilaian
-    await pool
-      .promise()
-      .query(
-        'DELETE FROM data_penilaian_detail WHERE id_penilaian_detail = ?',
-        [id_penilaian]
-      )
-
-    // Insert updated details into data_penilaian_detail table
-    const detailQuery =
-      'INSERT INTO data_penilaian_detail (id_penilaian_detail, id_kriteria, nilai, created_by, created_date) VALUES (?, ?, ?, ?, NOW())'
-
-    for (const detail of details) {
-      const detailValues = [
-        id_penilaian,
-        detail.id_kriteria,
-        detail.nilai,
-        userId,
-      ]
-
-      await pool.promise().query(detailQuery, detailValues)
-    }
-
-    res.status(200).json({ message: 'Data updated successfully' })
-  } catch (error) {
-    console.error(error)
-    res.status(500).send('Internal Server Error')
-  }
-}
-
 const DeleteNilai = async (req, res) => {
-  const { id_penilaian } = req.params
+  const id_penilaian = req.params.id
 
   try {
     // Check if the record exists in data_penilaian_header
@@ -315,6 +468,20 @@ const DeleteNilai = async (req, res) => {
     await pool
       .promise()
       .query('DELETE FROM data_penilaian_header WHERE id_penilaian = ?', [
+        id_penilaian,
+      ])
+
+    await pool
+      .promise()
+      .query(
+        'DELETE FROM matriks_penilaian_detail WHERE id_matriks_detail = ?',
+        [id_penilaian]
+      )
+
+    // Delete data from data_penilaian_header
+    await pool
+      .promise()
+      .query('DELETE FROM matriks_penilaian_header WHERE id_matriks = ?', [
         id_penilaian,
       ])
 
@@ -384,107 +551,33 @@ const GetMatrixs = async (req, res) => {
   }
 }
 
-const AddMatrix = async (req, res) => {
-  try {
-    const matriksDetailQuery =
-      'INSERT INTO matriks_penilaian_detail (id_matriks_detail, id_kriteria, nilai, created_by, created_date) VALUES (?, ?, ?, ?, NOW())'
-
-    for (const detail of details) {
-      const matriksDetailValues = [
-        idMatriks,
-        detail.id_kriteria,
-        detail.nilai,
-        userId,
-      ]
-
-      await pool.promise().query(matriksDetailQuery, matriksDetailValues)
-    }
-
-    // Get data from criteria table
-    const [criteriaRows] = await pool.promise().query('SELECT * FROM criteria')
-
-    // Get data from matriks_penilaian_detail table
-    const [matriksDetailRows] = await pool
-      .promise()
-      .query('SELECT * FROM matriks_penilaian_detail')
-
-    // Loop through details
-    for (const detail of details) {
-      const { id_kriteria, type } = detail
-
-      // Check for detail id kriteria same as kriteria id kriteria
-      const matchingCriteria = criteriaRows.find(
-        (criteria) => criteria.id_kriteria === id_kriteria
-      )
-
-      if (matchingCriteria) {
-        if (type === 'benefit') {
-          // If type is benefit, get highest nilai in matriks_penilaian_detail with same id kriteria
-          const highestBenefit = Math.max(
-            ...matriksDetailRows
-              .filter((row) => row.id_kriteria === id_kriteria)
-              .map((row) => row.nilai)
-          )
-
-          // Divide detail nilai with highest nilai from matriks_penilaian_detail
-          const normalizedValue = detail.nilai / highestBenefit
-          // Add data to matriks_penilaian_detail
-          await pool
-            .promise()
-            .query(matriksDetailQuery, [
-              idMatriks,
-              id_kriteria,
-              normalizedValue,
-              userId,
-            ])
-        } else if (type === 'cost') {
-          // If type is cost, get lowest nilai in matriks_penilaian_detail with same id kriteria
-          const lowestCost = Math.min(
-            ...matriksDetailRows
-              .filter((row) => row.id_kriteria === id_kriteria)
-              .map((row) => row.nilai)
-          )
-
-          // Divide lowest nilai from matriks_penilaian_detail with detail nilai
-          const normalizedValue = lowestCost / detail.nilai
-          // Add data to matriks_penilaian_detail
-          await pool
-            .promise()
-            .query(matriksDetailQuery, [
-              idMatriks,
-              id_kriteria,
-              normalizedValue,
-              userId,
-            ])
-        }
-      }
-    }
-
-    res.status(200).json({ message: 'Data inserted successfully' })
-  } catch (error) {
-    console.error('Error fetching data:', error)
-    res.status(500).send('Internal Server Error')
-  }
-}
-
 const GetRanks = async (req, res) => {
   try {
     // Fetch all data from data_penilaian_header
     const [headerResults] = await pool.promise().query(
       `
-              SELECT
-                p.id_pegawai,
-              FROM
-                pegawai p
-              JOIN
-                matriks_penilaian_header h ON p.id_pegawai = h.id_pegawai;
-            `
+        SELECT
+          p.id_pegawai,
+          p.divisi,
+          p.nik,
+          p.nama,
+          h.alternatif,
+          d.id_penilaian,
+          h.total
+        FROM
+          pegawai p
+        JOIN matriks_penilaian_header h ON p.id_pegawai = h.id_pegawai
+        JOIN data_penilaian_header d ON p.id_pegawai = d.id_pegawai
+        ORDER BY h.total DESC;
+      `
     )
 
     // Check if any results were found
     if (headerResults.length === 0) {
       return res.status(404).send('No data found')
     }
+
+    console.log(headerResults)
 
     const responseData = []
 
@@ -497,13 +590,14 @@ const GetRanks = async (req, res) => {
                   d.id_kriteria,
                   d.nilai,
                   k.nama AS kriteria_nama,
-                  k.code
+                  k.code,
+                  d.preferensi
                 FROM
                   matriks_penilaian_detail d
                 JOIN
                   kriteria k ON d.id_kriteria = k.id_kriteria
                 WHERE
-                  d.id_penilaian_detail = ?;
+                  d.id_matriks_detail = ?;
               `,
         [headerData.id_penilaian]
       )
@@ -511,6 +605,11 @@ const GetRanks = async (req, res) => {
       // Combine header and details data
       const result = {
         id_pegawai: headerData.id_pegawai,
+        divisi: headerData.divisi,
+        nik: headerData.nik,
+        nama: headerData.nama,
+        alternatif: headerData.alternatif,
+        total: headerData.total,
         details: detailsResults,
       }
 
