@@ -11,4 +11,6 @@ router
 
 router.route('/nilai/:id').get(Matrix.GetNilai).delete(Matrix.DeleteNilai)
 
+router.route("/ranks").get(Matrix.GetRanks)
+
 module.exports = router
