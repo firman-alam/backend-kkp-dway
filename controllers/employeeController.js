@@ -12,6 +12,7 @@ const getAllEmployees = (req, res) => {
 
 const getEmployee = (req, res) => {
   const employeeId = req.params.id
+  
   try {
     const [rows] = pool.query('SELECT * FROM pegawai WHERE id_pegawai = ?', [
       employeeId,
