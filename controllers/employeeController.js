@@ -2,8 +2,12 @@ const pool = require('../config/dbConfig')
 const { getUserIdFromToken } = require('./userController')
 
 const getAllEmployees = async (req, res) => {
+  const userId = getUserIdFromToken(req.headers.authorization)
+
   try {
-    const [rows] = await pool.promise().query('SELECT * FROM pegawai')
+    const [rows] = await pool
+      .promise()
+      .query('SELECT * FROM pegawai WHERE created_by = ?', [userId])
     res.json(rows)
   } catch (error) {
     console.error(error)
@@ -13,11 +17,15 @@ const getAllEmployees = async (req, res) => {
 
 const getEmployee = async (req, res) => {
   const employeeId = req.params.id
+  const userId = getUserIdFromToken(req.headers.authorization)
 
   try {
     const [rows] = await pool
       .promise()
-      .query('SELECT * FROM pegawai WHERE id_pegawai = ?', [employeeId])
+      .query('SELECT * FROM pegawai WHERE id_pegawai = ? AND created_by = ?', [
+        employeeId,
+        userId,
+      ])
 
     if (rows.length > 0) {
       res.json(rows[0])

@@ -18,7 +18,7 @@ const verifyJWT = (req, res, next) => {
       return res.sendStatus(403)
     }
 
-    console.log('Token verified successfully:', decoded)
+    // console.log('Token verified successfully:', decoded)
     req.user = decoded
     next()
   })

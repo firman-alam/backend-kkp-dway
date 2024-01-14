@@ -2,8 +2,12 @@ const pool = require('../config/dbConfig')
 const { getUserIdFromToken } = require('./userController')
 
 const getAllCriterias = async (req, res) => {
+  const userId = getUserIdFromToken(req.headers.authorization)
+
   try {
-    const [rows] = await pool.promise().query('SELECT * FROM kriteria')
+    const [rows] = await pool
+      .promise()
+      .query('SELECT * FROM kriteria WHERE created_by = ?', [userId])
     res.json(rows)
   } catch (error) {
     console.error(error)
@@ -13,11 +17,15 @@ const getAllCriterias = async (req, res) => {
 
 const getCriteria = async (req, res) => {
   const criteriaId = req.params.id
+  const userId = getUserIdFromToken(req.headers.authorization)
 
   try {
     const [rows] = await pool
       .promise()
-      .query('SELECT * FROM kriteria WHERE id_kriteria = ?', [criteriaId])
+      .query(
+        'SELECT * FROM kriteria WHERE id_kriteria = ? AND created_by = ?',
+        [criteriaId, userId]
+      )
 
     if (rows.length > 0) {
       res.json(rows[0])
