@@ -43,6 +43,17 @@ const addCriteria = async (req, res) => {
   const userId = getUserIdFromToken(req.headers.authorization)
 
   try {
+    const [existingCriteria] = await pool
+      .promise()
+      .query('SELECT * FROM kriteria WHERE code = ?', [code])
+
+    if (existingCriteria.length > 0) {
+      // Criteria with the same code already exists
+      return res
+        .status(400)
+        .json({ message: 'Criteria with the same code already exists' })
+    }
+
     const [result] = await pool
       .promise()
       .query(
@@ -62,15 +73,29 @@ const addCriteria = async (req, res) => {
 }
 
 const updateCriteria = async (req, res) => {
-  const { id_kriteria, nama, bobot, kode, tipe } = req.body
+  const { id_kriteria, nama, bobot, code, tipe } = req.body
   const userId = getUserIdFromToken(req.headers.authorization)
 
   try {
+    const [existingCriteria] = await pool
+      .promise()
+      .query('SELECT * FROM kriteria WHERE code = ? AND id_kriteria <> ?', [
+        code,
+        id_kriteria,
+      ])
+
+    if (existingCriteria.length > 0) {
+      // Criteria with the same code already exists
+      return res
+        .status(400)
+        .json({ message: 'Criteria with the same code already exists' })
+    }
+
     const [result] = await pool
       .promise()
       .query(
         'UPDATE kriteria SET nama = ?, bobot = ?, code = ?, tipe = ?, last_modified_by = ?, last_modified_date = NOW() WHERE id_kriteria = ?',
-        [nama, bobot, kode, tipe, userId, id_kriteria]
+        [nama, bobot, code, tipe, userId, id_kriteria]
       )
 
     if (result.affectedRows > 0) {

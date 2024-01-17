@@ -43,6 +43,16 @@ const addEmployee = async (req, res) => {
   const userId = getUserIdFromToken(req.headers.authorization)
 
   try {
+    const [existingEmployee] = await pool
+      .promise()
+      .query('SELECT * FROM pegawai WHERE nik = ?', [nik])
+
+    if (existingEmployee.length > 0) {
+      return res
+        .status(400)
+        .json({ message: 'Employee with the same nik already exists' })
+    }
+
     const [result] = await pool
       .promise()
       .query(
@@ -63,6 +73,20 @@ const updateEmployee = async (req, res) => {
   const userId = getUserIdFromToken(req.headers.authorization)
 
   try {
+    const [existingEmployee] = await pool
+      .promise()
+      .query('SELECT * FROM pegawai WHERE nik = ? AND id_pegawai <> ?', [
+        nik,
+        id_pegawai,
+      ])
+
+    if (existingEmployee.length > 0) {
+      // Employee with the same nik already exists
+      return res
+        .status(400)
+        .json({ message: 'Employee with the same nik already exists' })
+    }
+
     const [result] = await pool
       .promise()
       .query(
