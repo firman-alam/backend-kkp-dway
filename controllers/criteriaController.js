@@ -51,7 +51,7 @@ const addCriteria = async (req, res) => {
       // Criteria with the same code already exists
       return res
         .status(400)
-        .json({ message: 'Criteria with the same code already exists' })
+        .json({ message: 'Kriteria dengan kode yang sama sudah ada' })
     }
 
     const [result] = await pool
