@@ -50,7 +50,7 @@ const addEmployee = async (req, res) => {
     if (existingEmployee.length > 0) {
       return res
         .status(400)
-        .json({ message: 'Employee with the same nik already exists' })
+        .json({ message: 'Pegawai dengan NIK yang sama sudah ada' })
     }
 
     const [result] = await pool
@@ -84,7 +84,7 @@ const updateEmployee = async (req, res) => {
       // Employee with the same nik already exists
       return res
         .status(400)
-        .json({ message: 'Employee with the same nik already exists' })
+        .json({ message: 'Pegawai dengan NIK yang sama sudah ada' })
     }
 
     const [result] = await pool

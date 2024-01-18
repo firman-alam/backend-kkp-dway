@@ -432,7 +432,7 @@ const EditNilai = async (req, res) => {
     await pool
       .promise()
       .query(
-        'UPDATE data_penilaian_header (id_pegawai, tahun, last_modified_by, last_modified_date) VALUES (?, ?, ?, NOW()) WHERE id_penilaian = ?',
+        'UPDATE data_penilaian_header SET id_pegawai = ?, tahun = ?, last_modified_by = ?, last_modified_date = NOW() WHERE id_penilaian = ?',
         [id_pegawai, tahun, userId, id_penilaian]
       )
 
