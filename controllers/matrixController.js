@@ -154,7 +154,7 @@ const AddNilai = async (req, res) => {
   const userId = getUserIdFromToken(req.headers.authorization)
 
   try {
-    // Insert into data_penilaian_header table
+    // Simpan data ke tabel data_penilaian_header table
     const [headerResult] = await pool
       .promise()
       .query(
@@ -164,7 +164,7 @@ const AddNilai = async (req, res) => {
 
     const idPenilaian = headerResult.insertId
 
-    // Insert into data_penilaian_detail table
+    // Simpan data ke table data_penilaian_detail table
     const detailQuery =
       'INSERT INTO data_penilaian_detail (id_penilaian_detail, id_kriteria, nilai, created_by, created_date) VALUES (?, ?, ?, ?, NOW())'
 
@@ -174,6 +174,7 @@ const AddNilai = async (req, res) => {
       await pool.promise().query(detailQuery, detailValues)
     }
 
+    // Membuat Alternatif
     let alternatif = 'A1'
     let counter = 1
 
@@ -182,6 +183,7 @@ const AddNilai = async (req, res) => {
       alternatif = `A${counter}`
     }
 
+    // Simpan data ke tabel matriks penilaian header
     await pool
       .promise()
       .query(
@@ -189,22 +191,24 @@ const AddNilai = async (req, res) => {
         [id_pegawai, idPenilaian, alternatif, userId]
       )
 
-    // Get data from criteria table
-    const [criteriaRows] = await pool.promise().query('SELECT * FROM kriteria')
+    // Get data dari tabel kriteria
+    const [criteriaRows] = await pool.promise().query('SELECT * FROM kriteria WHERE created_by = ?', [userId])
 
-    // Get data from matriks_penilaian_detail table
+    // Get data dari tabel data_penilaian_detail
     const [nilaiDetailRows] = await pool
-      .promise()
-      .query('SELECT * FROM data_penilaian_detail WHERE created_by = ?', [
-        userId,
-      ])
-
+    .promise()
+    .query('SELECT * FROM data_penilaian_detail WHERE created_by = ?', [
+      userId,
+    ])
+    
+    // Get data dari tabel matriks_penilaian_detail
     const [matrikDetailRows] = await pool
       .promise()
       .query('SELECT * FROM matriks_penilaian_detail WHERE created_by = ?', [
         userId,
       ])
 
+    // Jika data table matriks penilain detail isinya 0
     if (matrikDetailRows.length == 0) {
       for (const [id_kriteria, nilai] of Object.entries(details)) {
         // Check for detail id kriteria same as kriteria id kriteria
@@ -212,6 +216,7 @@ const AddNilai = async (req, res) => {
           (criteria) => criteria.id_kriteria == id_kriteria
         )
 
+        // tambah data ke matriks penilaian detail
         await addDataToMatriksDetail(
           idPenilaian,
           id_kriteria,
@@ -221,7 +226,7 @@ const AddNilai = async (req, res) => {
           userId
         )
       }
-
+// get data perhitungan yang sudah disimpan di tabel matriks penilain detail
       const allDetailRows = await pool
         .promise()
         .query(
@@ -229,7 +234,7 @@ const AddNilai = async (req, res) => {
           [idPenilaian]
         )
 
-      // Calculate the sum of preferensi values
+      // Kalkulasi jumlah nilai preferensi
       const totalPreferensi = allDetailRows[0].reduce(
         (sum, row) => sum + row.preferensi,
         0
@@ -243,6 +248,7 @@ const AddNilai = async (req, res) => {
           [totalPreferensi, idPenilaian]
         )
     } else {
+      // Jika data table matriks penilaian detail lebih dari 0
       for (const [id_kriteria, nilai] of Object.entries(details)) {
         // Check for detail id kriteria same as kriteria id kriteria
         const matchingCriteria = criteriaRows.find(
@@ -283,7 +289,6 @@ const AddNilai = async (req, res) => {
       // Wait for all promises to complete before moving on
       await Promise.all(updatePromises)
 
-      console.log('ok')
 
       const [matrikDetails] = await pool
         .promise()

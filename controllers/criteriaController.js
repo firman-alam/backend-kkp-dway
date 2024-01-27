@@ -45,7 +45,7 @@ const addCriteria = async (req, res) => {
   try {
     const [existingCriteria] = await pool
       .promise()
-      .query('SELECT * FROM kriteria WHERE code = ?', [code])
+      .query('SELECT * FROM kriteria WHERE code = ? AND created_by = ?', [code, userId])
 
     if (existingCriteria.length > 0) {
       // Criteria with the same code already exists
@@ -79,9 +79,10 @@ const updateCriteria = async (req, res) => {
   try {
     const [existingCriteria] = await pool
       .promise()
-      .query('SELECT * FROM kriteria WHERE code = ? AND id_kriteria <> ?', [
+      .query('SELECT * FROM kriteria WHERE code = ? AND id_kriteria <> ? AND created_by = ?', [
         code,
         id_kriteria,
+        userId
       ])
 
     if (existingCriteria.length > 0) {

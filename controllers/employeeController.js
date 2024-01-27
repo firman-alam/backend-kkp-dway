@@ -45,7 +45,7 @@ const addEmployee = async (req, res) => {
   try {
     const [existingEmployee] = await pool
       .promise()
-      .query('SELECT * FROM pegawai WHERE nik = ?', [nik])
+      .query('SELECT * FROM pegawai WHERE nik = ? AND created_by = ?', [nik, userId])
 
     if (existingEmployee.length > 0) {
       return res
@@ -75,9 +75,10 @@ const updateEmployee = async (req, res) => {
   try {
     const [existingEmployee] = await pool
       .promise()
-      .query('SELECT * FROM pegawai WHERE nik = ? AND id_pegawai <> ?', [
+      .query('SELECT * FROM pegawai WHERE nik = ? AND id_pegawai <> ? AND created_by = ?', [
         nik,
         id_pegawai,
+        userId
       ])
 
     if (existingEmployee.length > 0) {

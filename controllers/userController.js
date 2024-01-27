@@ -5,9 +5,9 @@ require('dotenv').config()
 const pool = require('../config/dbConfig')
 
 const SignUp = async (req, res) => {
-  const { username, role, password } = req.body
+  const { username, password } = req.body
 
-  if (!username || !role || !password)
+  if (!username || !password)
     return res.status(400).json({ message: 'Semua field harus diisi' })
 
   try {
@@ -27,8 +27,8 @@ const SignUp = async (req, res) => {
 
     // Insert the new user into the users table
     const insertQuery =
-      'INSERT INTO user (username, role, password) VALUES (?, ?, ?)'
-    await pool.promise().query(insertQuery, [username, role, hashedPassword])
+      'INSERT INTO user (username, password) VALUES ( ?, ?)'
+    await pool.promise().query(insertQuery, [username, hashedPassword])
 
     // Return a success response
     res.status(201).json({ message: 'User created successfully' })
