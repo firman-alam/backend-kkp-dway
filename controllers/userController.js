@@ -26,8 +26,7 @@ const SignUp = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10)
 
     // Insert the new user into the users table
-    const insertQuery =
-      'INSERT INTO user (username, password) VALUES ( ?, ?)'
+    const insertQuery = 'INSERT INTO user (username, password) VALUES ( ?, ?)'
     await pool.promise().query(insertQuery, [username, hashedPassword])
 
     // Return a success response
@@ -43,9 +42,7 @@ const SignIn = async (req, res) => {
   const { username, password } = req.body
 
   if (!username || !password)
-    return res
-      .status(400)
-      .json({ message: 'Username and password are required.' })
+    return res.status(400).json({ message: 'Nama dan password harus diisi' })
 
   try {
     // Check if the user exists in the database
@@ -53,11 +50,12 @@ const SignIn = async (req, res) => {
     const [userResult] = await pool.promise().query(userQuery, [username])
 
     if (userResult.length === 0) {
-      return res.sendStatus(401) // Unauthorized
+      return res
+        .status(401)
+        .json({ message: 'Nama atau password ada yang salah' })
     }
 
     const foundUser = userResult[0]
-    console.log(foundUser)
 
     // Evaluate password
     const match = await bcrypt.compare(password, foundUser.password)
@@ -91,7 +89,7 @@ const SignIn = async (req, res) => {
       })
       res.json({ accessToken })
     } else {
-      res.sendStatus(401) // Unauthorized
+      res.status(401).json({ message: 'Nama atau password ada yang salah' }) // Unauthorized
     }
   } catch (error) {
     console.error(error)
