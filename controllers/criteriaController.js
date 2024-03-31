@@ -2,13 +2,21 @@ const pool = require('../config/dbConfig')
 const { getUserIdFromToken } = require('./userController')
 
 const getAllCriterias = async (req, res) => {
+  const id_divisi = req.params.id
   const userId = getUserIdFromToken(req.headers.authorization)
 
   try {
     const [rows] = await pool
       .promise()
-      .query('SELECT * FROM kriteria WHERE created_by = ?', [userId])
-    res.json(rows)
+      .query('SELECT * FROM kriteria WHERE id_divisi = ? AND created_by = ?', [
+        id_divisi,
+        userId,
+      ])
+    if (rows.length > 0) {
+      res.status(200).json({ data: rows })
+    } else {
+      res.status(404).json({ message: 'Kriteria tidak ditemukan' })
+    }
   } catch (error) {
     console.error(error)
     res.status(500).send('Internal Server Error')
@@ -16,19 +24,20 @@ const getAllCriterias = async (req, res) => {
 }
 
 const getCriteria = async (req, res) => {
-  const criteriaId = req.params.id
+  const id_divisi = req.params.id
+  const id_kriteria = req.params.id_kriteria
   const userId = getUserIdFromToken(req.headers.authorization)
 
   try {
     const [rows] = await pool
       .promise()
       .query(
-        'SELECT * FROM kriteria WHERE id_kriteria = ? AND created_by = ?',
-        [criteriaId, userId]
+        'SELECT * FROM kriteria WHERE id_kriteria = ? AND created_by = ? AND id_divisi = ?',
+        [id_kriteria, userId, id_divisi]
       )
 
     if (rows.length > 0) {
-      res.json(rows[0])
+      res.status(200).send(rows[0])
     } else {
       res.status(404).send('Criteria not found')
     }
@@ -39,50 +48,16 @@ const getCriteria = async (req, res) => {
 }
 
 const addCriteria = async (req, res) => {
-  const { nama, bobot, code, tipe } = req.body
+  const id_divisi = req.params.id
+  const { nama, bobot, kode, tipe } = req.body
   const userId = getUserIdFromToken(req.headers.authorization)
 
   try {
     const [existingCriteria] = await pool
       .promise()
-      .query('SELECT * FROM kriteria WHERE code = ? AND created_by = ?', [code, userId])
-
-    if (existingCriteria.length > 0) {
-      // Criteria with the same code already exists
-      return res
-        .status(400)
-        .json({ message: 'Kriteria dengan kode yang sama sudah ada' })
-    }
-
-    const [result] = await pool
-      .promise()
-      .query(
-        'INSERT INTO kriteria (nama, bobot, code, tipe, created_by, created_date) VALUES (?, ?, ?, ?, ?, NOW())',
-        [nama, bobot, code, tipe, userId]
-      )
-
-    const insertedId = result.insertId
-    res.json({
-      id_kriteria: insertedId,
-      message: 'Criteria added successfully',
-    })
-  } catch (error) {
-    console.error(error)
-    res.status(500).send('Internal Server Error')
-  }
-}
-
-const updateCriteria = async (req, res) => {
-  const { id_kriteria, nama, bobot, code, tipe } = req.body
-  const userId = getUserIdFromToken(req.headers.authorization)
-
-  try {
-    const [existingCriteria] = await pool
-      .promise()
-      .query('SELECT * FROM kriteria WHERE code = ? AND id_kriteria <> ? AND created_by = ?', [
-        code,
-        id_kriteria,
-        userId
+      .query('SELECT * FROM kriteria WHERE kode = ? AND created_by = ?', [
+        kode,
+        userId,
       ])
 
     if (existingCriteria.length > 0) {
@@ -95,12 +70,49 @@ const updateCriteria = async (req, res) => {
     const [result] = await pool
       .promise()
       .query(
-        'UPDATE kriteria SET nama = ?, bobot = ?, code = ?, tipe = ?, last_modified_by = ?, last_modified_date = NOW() WHERE id_kriteria = ?',
-        [nama, bobot, code, tipe, userId, id_kriteria]
+        'INSERT INTO kriteria (id_divisi, nama, bobot, kode, tipe, created_by, created_date) VALUES (?, ?, ?, ?, ?, ?, NOW())',
+        [id_divisi, nama, bobot, kode, tipe, userId]
+      )
+
+    const insertedId = result.insertId
+    res.json({
+      id_kriteria: insertedId,
+      message: 'Kriteria berhasil ditambahkan',
+    })
+  } catch (error) {
+    console.error(error)
+    res.status(500).send('Internal Server Error')
+  }
+}
+
+const updateCriteria = async (req, res) => {
+  const { id_kriteria, id_divisi, nama, bobot, kode, tipe } = req.body
+  const userId = getUserIdFromToken(req.headers.authorization)
+
+  try {
+    const [existingCriteria] = await pool
+      .promise()
+      .query(
+        'SELECT * FROM kriteria WHERE kode = ? AND id_kriteria <> ? AND id_divisi = ? AND created_by = ?',
+        [kode, id_kriteria, id_divisi, userId]
+      )
+
+    if (existingCriteria.length > 0) {
+      // Criteria with the same code already exists
+      return res
+        .status(400)
+        .json({ message: 'Kriteria dengan kode yang sama sudah ada' })
+    }
+
+    const [result] = await pool
+      .promise()
+      .query(
+        'UPDATE kriteria SET nama = ?, bobot = ?, kode = ?, tipe = ?, last_modified_by = ?, last_modified_date = NOW() WHERE id_kriteria = ? AND id_divisi = ? AND created_by = ?',
+        [nama, bobot, kode, tipe, userId, id_kriteria, id_divisi, userId]
       )
 
     if (result.affectedRows > 0) {
-      res.send('Criteria updated successfully')
+      res.status(201).json({ message: 'Kriteria berhasil diperbarui' })
     } else {
       res.status(404).send('Criteria not found')
     }

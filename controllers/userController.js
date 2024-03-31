@@ -11,29 +11,22 @@ const SignUp = async (req, res) => {
     return res.status(400).json({ message: 'Semua field harus diisi' })
 
   try {
-    // Check if the username already exists in the users table
     const duplicateQuery = 'SELECT * FROM user WHERE username = ?'
     const [duplicateResult] = await pool
       .promise()
       .query(duplicateQuery, [username])
 
     if (duplicateResult.length > 0) {
-      // If the username already exists, return a conflict response
-      return res.sendStatus(409)
+      return res.status(409).json({ message: 'Username duplicated' })
     }
 
-    // If the username is not found, proceed to create a new user
     const hashedPassword = await bcrypt.hash(password, 10)
 
-    // Insert the new user into the users table
     const insertQuery = 'INSERT INTO user (username, password) VALUES ( ?, ?)'
     await pool.promise().query(insertQuery, [username, hashedPassword])
 
-    // Return a success response
     res.status(201).json({ message: 'User created successfully' })
   } catch (error) {
-    // Handle any errors that occur during the process
-    console.error(error)
     res.status(500).json({ message: 'Internal Server Error' })
   }
 }
@@ -45,7 +38,6 @@ const SignIn = async (req, res) => {
     return res.status(400).json({ message: 'Nama dan password harus diisi' })
 
   try {
-    // Check if the user exists in the database
     const userQuery = 'SELECT * FROM user WHERE username = ?'
     const [userResult] = await pool.promise().query(userQuery, [username])
 
@@ -56,114 +48,24 @@ const SignIn = async (req, res) => {
     }
 
     const foundUser = userResult[0]
-
-    // Evaluate password
+    console.log(foundUser)
     const match = await bcrypt.compare(password, foundUser.password)
 
     if (match) {
       // Create JWTs
-      const accessToken = jwt.sign(
+      const token = jwt.sign(
         { userId: foundUser.id_user, username: foundUser.username },
         process.env.ACCESS_TOKEN_SECRET,
         { expiresIn: '1d' }
       )
 
-      const refreshToken = jwt.sign(
-        { userId: foundUser.id_user, username: foundUser.username },
-        process.env.REFRESH_TOKEN_SECRET,
-        { expiresIn: '1d' }
-      )
-
-      // Update the refreshToken in the database
-      const updateRefreshTokenQuery =
-        'UPDATE user SET refresh_token = ? WHERE username = ?'
-      await pool
-        .promise()
-        .query(updateRefreshTokenQuery, [refreshToken, foundUser.username])
-
-      res.cookie('jwt', refreshToken, {
-        httpOnly: true,
-        sameSite: 'None',
-        secure: true,
-        maxAge: 24 * 60 * 60 * 1000,
-      })
-      res.json({ accessToken })
+      res
+        .status(200)
+        .json({ message: 'User is authorized', token: token, status: true })
     } else {
-      res.status(401).json({ message: 'Nama atau password ada yang salah' }) // Unauthorized
+      res.status(401).json({ message: 'Nama atau password ada yang salah' })
     }
   } catch (error) {
-    console.error(error)
-    res.status(500).json({ message: 'Internal Server Error' })
-  }
-}
-
-const RefreshToken = async (req, res) => {
-  const cookies = req.cookies
-  if (!cookies?.jwt) return res.sendStatus(401)
-  const refreshToken = cookies.jwt
-
-  try {
-    // Check if the refreshToken exists in the database
-    const userQuery = 'SELECT * FROM user WHERE refresh_token = $1'
-    const userResult = await pool.query(userQuery, [refreshToken])
-
-    if (userResult.rows.length === 0) {
-      return res.sendStatus(403) // Forbidden
-    }
-
-    const foundUser = userResult.rows[0]
-
-    // Verify the refreshToken and decode the username
-    jwt.verify(
-      refreshToken,
-      process.env.REFRESH_TOKEN_SECRET,
-      (err, decoded) => {
-        if (err || foundUser.username !== decoded.username) {
-          return res.sendStatus(403)
-        }
-
-        // Create a new accessToken
-        const accessToken = jwt.sign(
-          { username: decoded.username },
-          process.env.ACCESS_TOKEN_SECRET,
-          { expiresIn: '30s' }
-        )
-
-        res.json({ accessToken })
-      }
-    )
-  } catch (error) {
-    console.error(error)
-    res.status(500).json({ message: 'Internal Server Error' })
-  }
-}
-
-const SignOut = async (req, res) => {
-  const cookies = req.cookies
-  if (!cookies?.jwt) return res.sendStatus(204) // No content
-
-  const refreshToken = cookies.jwt
-
-  try {
-    // Check if the refreshToken exists in the database
-    const userQuery = 'SELECT * FROM user WHERE refresh_token = ?'
-    const [userResult] = await pool.promise().query(userQuery, [refreshToken])
-
-    if (userResult.length === 0) {
-      // If refreshToken is not in the database, clear the cookie and return 204
-      res.clearCookie('jwt', { httpOnly: true, sameSite: 'None', secure: true })
-      return res.sendStatus(204)
-    }
-
-    // Update the refresh_token field to NULL (or an empty string) in the database
-    const updateRefreshTokenQuery =
-      'UPDATE user SET refresh_token = NULL WHERE refresh_token = ?'
-    await pool.promise().query(updateRefreshTokenQuery, [refreshToken])
-
-    res.clearCookie('jwt', { httpOnly: true, sameSite: 'None', secure: true })
-    res.sendStatus(204)
-  } catch (error) {
-    console.error(error)
     res.status(500).json({ message: 'Internal Server Error' })
   }
 }
@@ -185,4 +87,4 @@ const getUserIdFromToken = (authorizationHeader) => {
   }
 }
 
-module.exports = { SignIn, SignOut, SignUp, RefreshToken, getUserIdFromToken }
+module.exports = { SignIn, SignUp, getUserIdFromToken }
