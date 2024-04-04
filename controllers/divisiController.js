@@ -3,11 +3,18 @@ const { getUserIdFromToken } = require('./userController')
 
 const getAllDivisi = async (req, res) => {
   const userId = getUserIdFromToken(req.headers.authorization)
+  const { search } = req.query
+  let query = 'SELECT * FROM divisi WHERE created_by = ?'
+
+  const queryParams = [userId]
+
+  if (search && search.trim() !== '') {
+    query += ' AND nama_divisi LIKE ?'
+    queryParams.push(`%${search}%`)
+  }
 
   try {
-    const [rows] = await pool
-      .promise()
-      .query('SELECT * FROM divisi WHERE created_by = ?', [userId])
+    const [rows] = await pool.promise().query(query, queryParams)
     res.json(rows)
   } catch (error) {
     console.error(error)
@@ -28,7 +35,9 @@ const getDivisi = async (req, res) => {
       ])
 
     if (rows.length > 0) {
-      res.json(rows[0])
+      res
+        .status(200)
+        .json({ message: 'Data didapat', data: rows[0], status: true })
     } else {
       res.status(404).send('Divisi not found')
     }
@@ -51,10 +60,10 @@ const addDivisi = async (req, res) => {
       ])
 
     if (existingDivisi.length > 0) {
-      // Criteria with the same code already exists
-      return res
-        .status(400)
-        .json({ message: 'Divisi dengan nama yang sama sudah ada' })
+      return res.status(400).json({
+        message: 'Divisi dengan nama yang sama sudah ada',
+        status: false,
+      })
     }
 
     const [result] = await pool
@@ -68,6 +77,7 @@ const addDivisi = async (req, res) => {
     res.json({
       id_divisi: insertedId,
       message: 'Divisi telah ditambahkan',
+      status: true,
     })
   } catch (error) {
     console.error(error)
@@ -89,9 +99,10 @@ const updateDivisi = async (req, res) => {
 
     if (existingDivisi.length > 0) {
       // Criteria with the same code already exists
-      return res
-        .status(400)
-        .json({ message: 'Divisi dengan nama yang sama sudah ada' })
+      return res.status(400).json({
+        message: 'Divisi dengan nama yang sama sudah ada',
+        status: false,
+      })
     }
 
     const [result] = await pool
@@ -102,9 +113,11 @@ const updateDivisi = async (req, res) => {
       )
 
     if (result.affectedRows > 0) {
-      res.status(200).json({ message: 'Divisi berhasil diperbarui' })
+      res
+        .status(200)
+        .json({ message: 'Divisi berhasil diperbarui', status: true })
     } else {
-      res.status(404).send('Divisi not found')
+      res.status(404).json({ message: 'Divisi not found', status: false })
     }
   } catch (error) {
     console.error(error)
@@ -122,12 +135,13 @@ const deleteDivisi = async (req, res) => {
       .query('DELETE FROM divisi WHERE id_divisi = ?', [id_divisi, userId])
 
     if (result.affectedRows > 0) {
-      res.status(200).json({ messsage: 'Divisi berhasil dihapus' })
+      res
+        .status(200)
+        .json({ messsage: 'Divisi berhasil dihapus', status: true })
     } else {
-      res.status(404).send('Divisi not found')
+      res.status(404).json({ message: 'Divisi not found', status: false })
     }
   } catch (error) {
-    console.error(error)
     res.status(500).send('Internal Server Error')
   }
 }

@@ -6,13 +6,14 @@ const Matrix = require('../controllers/matrixController')
 
 const router = express.Router()
 
-router.route('/').get(Divisi.getAllDivisi).post(Divisi.addDivisi)
 router
-  .route('/:id')
-  .get(Divisi.getDivisi)
+  .route('/')
+  .get(Divisi.getAllDivisi)
+  .post(Divisi.addDivisi)
   .patch(Divisi.updateDivisi)
-  .delete(Divisi.deleteDivisi)
+router.route('/:id').get(Divisi.getDivisi).delete(Divisi.deleteDivisi)
 
+// Kriteria
 router
   .route('/:id/kriteria')
   .get(Kriteria.getAllCriterias)
@@ -23,6 +24,7 @@ router
   .patch(Kriteria.updateCriteria)
   .delete(Kriteria.deleteCriteria)
 
+// Kandidat
 router
   .route('/:id/kandidat')
   .get(Kandidat.getAllEmployees)
@@ -32,6 +34,14 @@ router
   .get(Kandidat.getEmployee)
   .patch(Kandidat.updateEmployee)
   .delete(Kandidat.deleteEmployee)
+
+router.route('/:id/nilai').get(Matrix.GetAllNilai)
+
+router
+  .route('/:id/kandidat/:id_kandidat/nilai')
+  .get(Matrix.GetNilai)
   .post(Matrix.AddNilai)
+  .patch(Matrix.EditNilai)
+  .delete(Matrix.DeleteNilai)
 
 module.exports = router

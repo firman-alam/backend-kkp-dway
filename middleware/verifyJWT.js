@@ -12,13 +12,12 @@ const verifyJWT = (req, res, next) => {
 
   const token = authHeader.split(' ')[1]
 
-  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+  jwt.verify(token, process.env.JWT_SECRET_KEY, (err, decoded) => {
     if (err) {
       console.log('Token verification failed:', err)
       return res.sendStatus(403)
     }
 
-    // console.log('Token verified successfully:', decoded)
     req.user = decoded
     next()
   })

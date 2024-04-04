@@ -23,9 +23,6 @@ app.use('/auth', require('./routes/users'))
 
 // app.use(verifyJWT)
 app.use('/divisi', require('./routes/divisi'))
-app.use('/employee', require('./routes/employee'))
-app.use('/criteria', require('./routes/criteria'))
-app.use('/matrix', require('./routes/matrix'))
 
 app.use(errorHandler)
 

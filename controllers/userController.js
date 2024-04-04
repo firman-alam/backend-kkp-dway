@@ -48,14 +48,14 @@ const SignIn = async (req, res) => {
     }
 
     const foundUser = userResult[0]
-    console.log(foundUser)
+
     const match = await bcrypt.compare(password, foundUser.password)
 
     if (match) {
       // Create JWTs
       const token = jwt.sign(
         { userId: foundUser.id_user, username: foundUser.username },
-        process.env.ACCESS_TOKEN_SECRET,
+        process.env.JWT_SECRET_KEY,
         { expiresIn: '1d' }
       )
 
@@ -78,7 +78,7 @@ const getUserIdFromToken = (authorizationHeader) => {
   const token = authorizationHeader.split(' ')[1]
 
   try {
-    const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET)
+    const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY)
     return decoded.userId // Assuming you included userId in the token payload during sign-in
   } catch (error) {
     // Token verification failed

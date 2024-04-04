@@ -55,29 +55,30 @@ const addCriteria = async (req, res) => {
   try {
     const [existingCriteria] = await pool
       .promise()
-      .query('SELECT * FROM kriteria WHERE kode = ? AND created_by = ?', [
-        kode,
-        userId,
-      ])
+      .query(
+        'SELECT * FROM kriteria WHERE kode = ? AND id_divisi = ? AND created_by = ?',
+        [kode, id_divisi, userId]
+      )
 
     if (existingCriteria.length > 0) {
-      // Criteria with the same code already exists
-      return res
-        .status(400)
-        .json({ message: 'Kriteria dengan kode yang sama sudah ada' })
+      return res.status(400).json({
+        message: 'Kriteria dengan kode yang sama sudah ada',
+        status: false,
+      })
     }
 
     const [result] = await pool
       .promise()
       .query(
         'INSERT INTO kriteria (id_divisi, nama, bobot, kode, tipe, created_by, created_date) VALUES (?, ?, ?, ?, ?, ?, NOW())',
-        [id_divisi, nama, bobot, kode, tipe, userId]
+        [id_divisi, nama, parseFloat(bobot), kode, tipe, userId]
       )
 
     const insertedId = result.insertId
     res.json({
       id_kriteria: insertedId,
       message: 'Kriteria berhasil ditambahkan',
+      status: true,
     })
   } catch (error) {
     console.error(error)
@@ -86,7 +87,9 @@ const addCriteria = async (req, res) => {
 }
 
 const updateCriteria = async (req, res) => {
-  const { id_kriteria, id_divisi, nama, bobot, kode, tipe } = req.body
+  const id_divisi = req.params.id
+  const id_kriteria = req.params.id_kriteria
+  const { nama, bobot, kode, tipe } = req.body
   const userId = getUserIdFromToken(req.headers.authorization)
 
   try {
@@ -112,9 +115,13 @@ const updateCriteria = async (req, res) => {
       )
 
     if (result.affectedRows > 0) {
-      res.status(201).json({ message: 'Kriteria berhasil diperbarui' })
+      res
+        .status(201)
+        .json({ message: 'Kriteria berhasil diperbarui', status: true })
     } else {
-      res.status(404).send('Criteria not found')
+      res
+        .status(404)
+        .json({ message: 'Kriteria tidak ditemukan', status: false })
     }
   } catch (error) {
     console.error(error)
