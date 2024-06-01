@@ -2,6 +2,7 @@ const pool = require('../config/dbConfig')
 const { getUserIdFromToken } = require('./userController')
 
 const GetAllNilai = async (req, res) => {
+  const id_divisi = req.params.id
   const userId = getUserIdFromToken(req.headers.authorization)
 
   try {
@@ -9,24 +10,24 @@ const GetAllNilai = async (req, res) => {
     const [headerResults] = await pool.promise().query(
       `
         SELECT
-          p.id_pegawai,
-          p.nama AS pegawai_nama,
+          p.id_kandidat,
+          p.nama AS nama_kandidat,
           p.nik,
           h.tahun,
           h.id_penilaian
         FROM
-          pegawai p
+          kandidat p
         JOIN
-          data_penilaian_header h ON p.id_pegawai = h.id_pegawai
+          data_penilaian_header h ON p.id_kandidat = h.id_kandidat
         WHERE
-          h.created_by = ?;
+          h.created_by = ? AND p.id_divisi = ?;
       `,
-      [userId]
+      [userId, parseInt(id_divisi)]
     )
 
     // Check if any results were found
     if (headerResults.length === 0) {
-      return res.status(404).send('No data found')
+      return res.json([])
     }
 
     const responseData = []
@@ -40,21 +41,21 @@ const GetAllNilai = async (req, res) => {
             d.id_kriteria,
             d.nilai,
             k.nama AS kriteria_nama,
-            k.code
+            k.kode
           FROM
             data_penilaian_detail d
           JOIN
             kriteria k ON d.id_kriteria = k.id_kriteria
           WHERE
-            d.id_penilaian_detail = ?;
+            d.id_penilaian_detail = ? AND d.id_divisi = ?;
         `,
-        [headerData.id_penilaian]
+        [headerData.id_penilaian, id_divisi]
       )
 
       // Combine header and details data
       const result = {
-        id_pegawai: headerData.id_pegawai,
-        nama: headerData.pegawai_nama,
+        id_kandidat: headerData.id_kandidat,
+        nama: headerData.nama_kandidat,
         nik: headerData.nik,
         tahun: headerData.tahun,
         id_penilaian: headerData.id_penilaian,
@@ -74,25 +75,26 @@ const GetAllNilai = async (req, res) => {
 }
 
 const GetNilai = async (req, res) => {
-  const nilaiId = req.params.id
+  const id_divisi = req.params.id
+  const id_kandidat = req.params.id_kandidat
 
   try {
     // Fetch data from data_penilaian_header
     const [headerResults] = await pool.promise().query(
       `
       SELECT
-        p.id_pegawai,
-        p.nama AS pegawai_nama,
+        p.id_kandidat,
+        p.nama AS nama_kandidat,
         h.tahun,
         h.id_penilaian
       FROM
-        pegawai p
+        kandidat p
       JOIN
-        data_penilaian_header h ON p.id_pegawai = h.id_pegawai
+        data_penilaian_header h ON p.id_kandidat = h.id_kandidat
       WHERE
-        h.id_penilaian = ?;
+        p.id_kandidat = ? AND h.id_divisi = ?;
     `,
-      [nilaiId]
+      [id_kandidat, id_divisi]
     )
 
     // Check if any results were found
@@ -131,7 +133,11 @@ const GetNilai = async (req, res) => {
     }
 
     // Send the JSON response
-    res.json(responseData)
+    res.json({
+      message: 'Data berhasil didapat',
+      status: true,
+      data: responseData,
+    })
   } catch (error) {
     console.error('Error fetching data:', error)
     res.status(500).send('Internal Server Error')
@@ -152,7 +158,7 @@ const checkAlternatifExists = async (alternatif) => {
 const AddNilai = async (req, res) => {
   const id_divisi = req.params.id
   const id_kandidat = req.params.id_kandidat
-  const { tahun, details } = req.body
+  const { details, tahun } = req.body
   const userId = getUserIdFromToken(req.headers.authorization)
 
   try {
@@ -168,10 +174,10 @@ const AddNilai = async (req, res) => {
 
     // Simpan data ke table data_penilaian_detail table
     const detailQuery =
-      'INSERT INTO data_penilaian_detail (id_penilaian_detail, id_kriteria, nilai, created_by, created_date) VALUES (?, ?, ?, ?, NOW())'
+      'INSERT INTO data_penilaian_detail (id_penilaian_detail, id_kriteria, id_divisi, nilai, created_by, created_date) VALUES (?, ?, ?, ?, ?, NOW())'
 
     for (const [id_kriteria, nilai] of Object.entries(details)) {
-      const detailValues = [idPenilaian, id_kriteria, nilai, userId]
+      const detailValues = [idPenilaian, id_kriteria, id_divisi, nilai, userId]
 
       await pool.promise().query(detailQuery, detailValues)
     }
@@ -213,7 +219,7 @@ const AddNilai = async (req, res) => {
     const [matrikDetailRows] = await pool
       .promise()
       .query(
-        'SELECT * FROM matriks_penilaian_detail WHERE created_by = ? AND id_divisi',
+        'SELECT * FROM matriks_penilaian_detail WHERE created_by = ? AND id_divisi = ?',
         [userId, id_divisi]
       )
 
@@ -327,7 +333,9 @@ const AddNilai = async (req, res) => {
       }
     }
 
-    res.status(200).json({ message: 'Data inserted successfully' })
+    res
+      .status(200)
+      .json({ message: 'Data inserted successfully', status: true })
   } catch (error) {
     console.error(error)
     res.status(500).send('Internal Server Error')
@@ -370,7 +378,7 @@ const addDataToMatriksDetail = async (
 
       // Divide lowest nilai from matriks_penilaian_detail with detail nilai
       normalizedValue =
-        matriksDetailRows.length === 0
+        nilaiDetailRows.length === 0
           ? nilai / nilai
           : lowestCost !== 0
           ? lowestCost / nilai
@@ -652,19 +660,22 @@ const DeleteNilai = async (req, res) => {
 }
 
 const GetMatrixs = async (req, res) => {
+  const id_divisi = req.params.id
+
   try {
     // Fetch all data from data_penilaian_header
     const [headerResults] = await pool.promise().query(
       `
-        SELECT p.id_pegawai, h.alternatif, h.id_matriks
-        FROM pegawai p
-        JOIN matriks_penilaian_header h ON p.id_pegawai = h.id_pegawai;
-      `
+        SELECT p.id_kandidat, h.alternatif, h.id_matriks
+        FROM kandidat p
+        JOIN matriks_penilaian_header h ON p.id_kandidat = h.id_kandidat AND p.id_divisi = h.id_divisi WHERE p.id_divisi = ? AND h.id_divisi = ?;
+      `,
+      [id_divisi, id_divisi]
     )
 
     // Check if any results were found
     if (headerResults.length === 0) {
-      return res.status(404).send('No data found')
+      return res.json([])
     }
 
     const responseData = []
@@ -678,7 +689,7 @@ const GetMatrixs = async (req, res) => {
               d.id_kriteria,
               d.nilai,
               k.nama AS kriteria_nama,
-              k.code,
+              k.kode,
               d.preferensi
             FROM
               matriks_penilaian_detail d
@@ -692,7 +703,7 @@ const GetMatrixs = async (req, res) => {
 
       // Combine header and details data
       const result = {
-        id_pegawai: headerData.id_pegawai,
+        id_kandidat: headerData.id_kandidat,
         alternatif: headerData.alternatif,
         details: detailsResults,
       }
@@ -710,37 +721,38 @@ const GetMatrixs = async (req, res) => {
 }
 
 const GetRanks = async (req, res) => {
-  const { tahun, size } = req.query
+  const id_divisi = req.params.id
+  const { tahun } = req.query
 
   try {
     // Fetch all data from data_penilaian_header
     const [headerResults] = await pool.promise().query(
       `
         SELECT
-          p.id_pegawai,
-          p.divisi,
+          p.id_kandidat,
           p.nik,
           p.nama,
           h.alternatif,
           d.id_penilaian,
           h.total,
           d.tahun,
-          h.alternatif
+          h.alternatif,
+          divisi.nama_divisi
         FROM
-          pegawai p
-        JOIN matriks_penilaian_header h ON p.id_pegawai = h.id_pegawai
-        JOIN data_penilaian_header d ON p.id_pegawai = d.id_pegawai
+          kandidat p
+        JOIN matriks_penilaian_header h ON p.id_kandidat = h.id_kandidat
+        JOIN data_penilaian_header d ON p.id_kandidat = d.id_kandidat
+        JOIN divisi ON p.id_divisi = divisi.id_divisi
         WHERE
-          d.tahun = ?
+          d.tahun = ? AND d.id_divisi = ?
         ORDER BY h.total DESC
-        LIMIT ?
       `,
-      [tahun, parseInt(size, 10)]
+      [tahun, id_divisi]
     )
-
+    console.log(headerResults)
     // Check if any results were found
     if (headerResults.length === 0) {
-      return res.status(404).send('No data found')
+      return res.json([])
     }
 
     const responseData = []
@@ -754,22 +766,22 @@ const GetRanks = async (req, res) => {
                   d.id_kriteria,
                   d.nilai,
                   k.nama AS kriteria_nama,
-                  k.code,
+                  k.kode,
                   d.preferensi
                 FROM
                   matriks_penilaian_detail d
                 JOIN
                   kriteria k ON d.id_kriteria = k.id_kriteria
                 WHERE
-                  d.id_matriks_detail = ?;
+                  d.id_matriks_detail = ? AND d.id_divisi = ?;
               `,
-        [headerData.id_penilaian]
+        [headerData.id_penilaian, id_divisi]
       )
 
       // Combine header and details data
       const result = {
-        id_pegawai: headerData.id_pegawai,
-        divisi: headerData.divisi,
+        id_kandidat: headerData.id_kandidat,
+        divisi: headerData.nama_divisi,
         nik: headerData.nik,
         nama: headerData.nama,
         alternatif: headerData.alternatif,

@@ -49,7 +49,7 @@ const getCriteria = async (req, res) => {
 
 const addCriteria = async (req, res) => {
   const id_divisi = req.params.id
-  const { nama, bobot, kode, tipe } = req.body
+  const { nama, bobot, kode, tipe, maks_nilai } = req.body
   const userId = getUserIdFromToken(req.headers.authorization)
 
   try {
@@ -70,8 +70,8 @@ const addCriteria = async (req, res) => {
     const [result] = await pool
       .promise()
       .query(
-        'INSERT INTO kriteria (id_divisi, nama, bobot, kode, tipe, created_by, created_date) VALUES (?, ?, ?, ?, ?, ?, NOW())',
-        [id_divisi, nama, parseFloat(bobot), kode, tipe, userId]
+        'INSERT INTO kriteria (id_divisi, nama, bobot, kode, tipe, maks_nilai, created_by, created_date) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())',
+        [id_divisi, nama, parseFloat(bobot), kode, tipe, maks_nilai, userId]
       )
 
     const insertedId = result.insertId
@@ -89,7 +89,7 @@ const addCriteria = async (req, res) => {
 const updateCriteria = async (req, res) => {
   const id_divisi = req.params.id
   const id_kriteria = req.params.id_kriteria
-  const { nama, bobot, kode, tipe } = req.body
+  const { nama, bobot, kode, tipe, maks_nilai } = req.body
   const userId = getUserIdFromToken(req.headers.authorization)
 
   try {
@@ -110,8 +110,18 @@ const updateCriteria = async (req, res) => {
     const [result] = await pool
       .promise()
       .query(
-        'UPDATE kriteria SET nama = ?, bobot = ?, kode = ?, tipe = ?, last_modified_by = ?, last_modified_date = NOW() WHERE id_kriteria = ? AND id_divisi = ? AND created_by = ?',
-        [nama, bobot, kode, tipe, userId, id_kriteria, id_divisi, userId]
+        'UPDATE kriteria SET nama = ?, bobot = ?, kode = ?, tipe = ?, maks_nilai = ?, last_modified_by = ?, last_modified_date = NOW() WHERE id_kriteria = ? AND id_divisi = ? AND created_by = ?',
+        [
+          nama,
+          bobot,
+          kode,
+          tipe,
+          maks_nilai,
+          userId,
+          id_kriteria,
+          id_divisi,
+          userId,
+        ]
       )
 
     if (result.affectedRows > 0) {

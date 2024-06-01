@@ -36,6 +36,8 @@ router
   .delete(Kandidat.deleteEmployee)
 
 router.route('/:id/nilai').get(Matrix.GetAllNilai)
+router.route(`/:id/matriks`).get(Matrix.GetMatrixs)
+router.route('/:id/ranks').get(Matrix.GetRanks)
 
 router
   .route('/:id/kandidat/:id_kandidat/nilai')
