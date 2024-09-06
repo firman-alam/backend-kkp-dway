@@ -68,6 +68,7 @@ const SignIn = async (req, res) => {
       res.status(200).json({
         message: `Selamat datang ${foundUser.username}`,
         token: token,
+        role: foundUser.role,
         status: true,
       });
     } else {
