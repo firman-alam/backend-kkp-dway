@@ -97,4 +97,103 @@ const getUserIdFromToken = (authorizationHeader) => {
   }
 };
 
-module.exports = { SignIn, SignUp, getUserIdFromToken };
+const getAllUsers = async (req, res) => {
+  try {
+    const [rows] = await pool.promise().query("SELECT * FROM user");
+    if (rows.length > 0) {
+      res.status(200).json({ data: rows });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Internal Server Error");
+  }
+};
+
+const getUserById = async (req, res) => {
+  const user_id = req.params.user_id;
+
+  try {
+    const [rows] = await pool
+      .promise()
+      .query("SELECT * FROM user WHERE id_user = ?", [user_id]);
+    if (rows.length > 0) {
+      res.status(200).json({ data: rows });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Internal Server Error");
+  }
+};
+
+const addUser = async (req, res) => {
+  const { username, password, role } = req.body;
+
+  try {
+    const [result] = await pool
+      .promise()
+      .query("INSERT INTO user (username, password, role) VALUES (?, ?, ?)", [
+        username,
+        password,
+        role,
+      ]);
+    if (result.affectedRows > 0) {
+      res
+        .status(201)
+        .json({ message: "User added successfully", userId: result.insertId });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Internal Server Error");
+  }
+};
+
+const updateUser = async (req, res) => {
+  const user_id = req.params.user_id;
+  const { username, password, role } = req.body;
+
+  try {
+    const [result] = await pool
+      .promise()
+      .query(
+        "UPDATE user SET username = ?, password = ?, role = ? WHERE id_user = ?",
+        [username, password, role, user_id]
+      );
+    if (result.affectedRows > 0) {
+      res.status(200).json({ message: "User updated successfully" });
+    } else {
+      res.status(404).json({ message: "User not found" });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Internal Server Error");
+  }
+};
+
+const deleteUser = async (req, res) => {
+  const user_id = req.params.user_id;
+
+  try {
+    const [result] = await pool
+      .promise()
+      .query("DELETE FROM user WHERE id_user = ?", [user_id]);
+    if (result.affectedRows > 0) {
+      res.status(200).json({ message: "User deleted successfully" });
+    } else {
+      res.status(404).json({ message: "User not found" });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Internal Server Error");
+  }
+};
+
+module.exports = {
+  SignIn,
+  SignUp,
+  getUserIdFromToken,
+  getAllUsers,
+  getUserById,
+  addUser,
+  updateUser,
+  deleteUser,
+};
