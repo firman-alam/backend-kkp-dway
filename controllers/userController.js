@@ -117,7 +117,7 @@ const getUserById = async (req, res) => {
       .promise()
       .query("SELECT * FROM user WHERE id_user = ?", [user_id]);
     if (rows.length > 0) {
-      res.status(200).json({ data: rows });
+      res.status(200).json({ data: rows[0] });
     }
   } catch (error) {
     console.error(error);
