@@ -99,10 +99,22 @@ const getUserIdFromToken = (authorizationHeader) => {
 };
 
 const getAllUsers = async (req, res) => {
+  const { search } = req.query;
+
+  let query = "SELECT * FROM user";
+  let queryParams = [];
+
+  if (search && search.trim() !== "") {
+    query += " WHERE username LIKE ?";
+    queryParams.push(`%${search}%`);
+  }
+
   try {
-    const [rows] = await pool.promise().query("SELECT * FROM user");
+    const [rows] = await pool.promise().query(query, queryParams);
     if (rows.length > 0) {
       res.status(200).json({ data: rows });
+    } else {
+      res.status(200).json({ data: [] }); // Return an empty array if no users found
     }
   } catch (error) {
     console.error(error);
